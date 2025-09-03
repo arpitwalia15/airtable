@@ -39,9 +39,8 @@
 //   }
 // }
 
-import fetch from "node-fetch";
 
-export const handler = async function (event) {
+exports.handler = async function () {
   try {
     const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
     const BASE_ID = "appEr7aN5ctjnRYdM";
@@ -49,67 +48,31 @@ export const handler = async function (event) {
     const TABLE_B = "tbl1r1HbYwHvAf9uA";
 
     const headers = {
-      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-      "Content-Type": "application/json"
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`
     };
 
-    // 🚀 If request is POST → save PDF in Airtable
-    if (event.httpMethod === "POST") {
-      const body = JSON.parse(event.body);
-
-      const { recordId, pdfUrl } = body;
-
-      if (!recordId || !pdfUrl) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: "recordId and pdfUrl are required" })
-        };
-      }
-
-      // Update Airtable with generated PDF
-      const updateRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}/${recordId}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({
-          fields: {
-            "Generated PDF": [
-              {
-                url: pdfUrl
-              }
-            ]
-          }
-        })
-      });
-
-      const updateData = await updateRes.json();
-
-      return {
-        statusCode: 200,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify(updateData)
-      };
-    }
-
-    // 🚀 Otherwise GET → fetch images from Airtable (your old code)
+    // Fetch Table A
     const resA = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}`, { headers });
     const dataA = await resA.json();
 
+    // Fetch Table B
     const resB = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_B}`, { headers });
     const dataB = await resB.json();
 
+    // Merge both tables
     const merged = [...(dataA.records || []), ...(dataB.records || [])];
 
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "*", // allow Webflow to fetch
         "Content-Type": "application/json"
       },
       body: JSON.stringify(merged)
     };
 
   } catch (err) {
-    console.error("Error handling Airtable request:", err);
+    console.error("Error fetching Airtable data:", err);
 
     return {
       statusCode: 500,
@@ -117,8 +80,9 @@ export const handler = async function (event) {
         "Access-Control-Allow-Origin": "*",
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ error: "Server error" })
+      body: JSON.stringify({ error: "Failed to fetch data from Airtable" })
     };
   }
 };
+
 
