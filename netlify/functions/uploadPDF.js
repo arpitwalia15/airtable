@@ -1,57 +1,58 @@
-import Airtable from "airtable";
-import multiparty from "multiparty";
+// netlify/functions/uploadPDF.js
 import fetch from "node-fetch";
-import fs from "fs";
-
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
-const BASE_ID = process.env.AIRTABLE_BASE_ID;
-const TABLE_NAME = "TableA"; // replace with your table name
-
-const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(BASE_ID);
+import FormData from "form-data";
 
 export const handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+  try {
+    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+    const BASE_ID = "appEr7aN5ctjnRYdM";
+    const TABLE_A = "tbllSk56KZ9TA0ioI"; // your table
+    const { recordId } = event.queryStringParameters;
 
-  const form = new multiparty.Form();
-  return new Promise((resolve, reject) => {
-    form.parse(event, async (err, fields, files) => {
-      if (err) reject({ statusCode: 500, body: err.toString() });
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
+    }
 
-      const file = files.file[0];
-      const fileContent = fs.readFileSync(file.path);
+    // Parse file from multipart form-data
+    const boundary = event.headers["content-type"].split("boundary=")[1];
+    const parts = event.body.split(`--${boundary}`);
+    // (for production, use a lib like busboy for parsing)
 
-      try {
-        // 1. Upload PDF to a free file hosting API (replace with your preferred service)
-        const uploadRes = await fetch("https://api.upload.io/v2/accounts/YOUR_ID/uploads/form_data", {
-          method: "POST",
-          headers: { Authorization: "Bearer " + process.env.UPLOAD_API_KEY },
-          body: (() => {
-            const formData = new FormData();
-            formData.append("file", fileContent, file.originalFilename);
-            return formData;
-          })()
-        });
-        const uploadData = await uploadRes.json();
-        const fileUrl = uploadData.fileUrl;
+    // Upload PDF file to Airtable by URL
+    // Airtable requires an external file URL
+    // Option 1: first upload to Cloudinary/S3/Netlify Large Media → get public URL
+    // Option 2: convert to base64 and use an upload API
 
-        // 2. Store file URL in Airtable "Generated PDF"
-        const record = await base(TABLE_NAME).create([
-          {
-            fields: {
-              "Generated PDF": [{ url: fileUrl }],
-            },
+    // For demo: we'll pretend we already have a public URL
+    const pdfUrl = "https://example.com/selected-images.pdf";
+
+    const updateRes = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}/${recordId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: {
+            "Generated PDF": [{ url: pdfUrl }],
           },
-        ]);
-
-        resolve({
-          statusCode: 200,
-          body: JSON.stringify({ message: "Uploaded!", record }),
-        });
-      } catch (error) {
-        resolve({ statusCode: 500, body: error.toString() });
+        }),
       }
-    });
-  });
+    );
+
+    const data = await updateRes.json();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, airtable: data }),
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Failed to upload PDF" }),
+    };
+  }
 };
