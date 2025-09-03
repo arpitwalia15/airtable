@@ -1,6 +1,6 @@
 // netlify/functions/uploadPDF.js
-import fetch from "node-fetch";
-import FormData from "form-data";
+// import fetch from "node-fetch";
+// import FormData from "form-data";
 
 export const handler = async (event) => {
   try {
