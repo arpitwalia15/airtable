@@ -1,59 +1,53 @@
-// netlify/functions/uploadPDF.js
-import fetch from "node-fetch";
-import multiparty from "multiparty";
-import fs from "fs";
+const Airtable = require("airtable");
+const multiparty = require("multiparty");
+const fs = require("fs");
 
-export const handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
-
+exports.handler = async function (event) {
   try {
+    // 🔑 Airtable credentials (hardcoded for free Netlify)
     const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
     const BASE_ID = "appEr7aN5ctjnRYdM";
-    const TABLE_A = "tbllSk56KZ9TA0ioI";
+    const TABLE_A = "tbllSk56KZ9TA0ioI"; // Table A
 
-    // Parse incoming form-data
+    const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(BASE_ID);
+
+    // Parse multipart form-data (PDF + recordId)
     const form = new multiparty.Form();
+
     const data = await new Promise((resolve, reject) => {
       form.parse(event, (err, fields, files) => {
         if (err) reject(err);
-        resolve({ fields, files });
+        else resolve({ fields, files });
       });
     });
 
-    const recordId = data.fields.recordId[0];
-    const file = data.files.file[0];
+    const recordId = data.fields.recordId[0]; // Airtable record ID
+    const filePath = data.files.file[0].path;
 
-    // ⚠️ You need to upload the file somewhere publicly accessible (S3, Cloudinary, or Netlify file serving)
-    // For demo, let's assume you upload file to Cloudinary and get back a URL
-    const pdfUrl = "https://your-public-storage.com/" + file.originalFilename;
+    const pdfBuffer = fs.readFileSync(filePath);
 
-    // Update Airtable record with PDF URL
-    const updateRes = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}/${recordId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields: {
-            "Generated PDF": [{ url: pdfUrl }],
-          },
-        }),
-      }
-    );
-
-    const airtableResp = await updateRes.json();
+    // ✅ Upload PDF into Airtable's "Generated PDF" field
+    const updated = await base(TABLE_A).update(recordId, {
+      "Generated PDF": [
+        {
+          filename: "selected-images.pdf",
+          type: "application/pdf",
+          url: `data:application/pdf;base64,${pdfBuffer.toString("base64")}`
+        }
+      ]
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, airtable: airtableResp }),
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ success: true, record: updated })
     };
   } catch (err) {
-    console.error("Upload failed:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error("Upload error:", err);
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
