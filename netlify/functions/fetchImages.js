@@ -59,15 +59,30 @@ exports.handler = async function () {
     const resB = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_B}`, { headers });
     const dataB = await resB.json();
 
+    // Merge both tables
+    const merged = [...(dataA.records || []), ...(dataB.records || [])];
+
     return {
       statusCode: 200,
-      body: JSON.stringify([...dataA.records, ...dataB.records])
+      headers: {
+        "Access-Control-Allow-Origin": "*", // allow Webflow to fetch
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(merged)
     };
+
   } catch (err) {
+    console.error("Error fetching Airtable data:", err);
+
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message })
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ error: "Failed to fetch data from Airtable" })
     };
   }
 };
+
 
