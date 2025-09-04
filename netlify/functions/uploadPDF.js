@@ -1,50 +1,56 @@
-import Airtable from "airtable";
-
-// Hardcoded keys for now (use environment variables in production)
-const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
-const BASE_ID = "appEr7aN5ctjnRYdM";
-const TABLE_A = "tbllSk56KZ9TA0ioI";
-
-const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(BASE_ID);
-
-export async function handler(event) {
+// netlify/functions/uploadPDF.js
+exports.handler = async function (event) {
   try {
-    console.log("Request received:", event.body);
+    const { recordId, pdfUrl } = JSON.parse(event.body);
 
-    if (!event.body) throw new Error("No request body");
+    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
+    const BASE_ID = "appEr7aN5ctjnRYdM";
+    const TABLE_A = "tbllSk56KZ9TA0ioI";
+    const TABLE_B = "tbl1r1HbYwHvAf9uA";
 
-    const body = JSON.parse(event.body);
-    const recordId = body.recordId;
-    if (!recordId) throw new Error("No recordId provided");
+    // Choose the right table (optional: here I assume both tables have PDF field)
+    const urlA = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}/${recordId}`;
+    const urlB = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_B}/${recordId}`;
 
-    // Use dummy PDF URL if none provided
-    const pdfUrl = body.pdfUrl || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-    if (!pdfUrl) throw new Error("No PDF URL provided");
-
-    console.log("Updating record:", recordId, "with PDF URL:", pdfUrl);
-
-    // Update Airtable with attachment
-    const updated = await base(TABLE_A).update([
-      {
-        id: recordId,
+    // Try updating both tables (whichever matches recordId will succeed)
+    let response = await fetch(urlA, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         fields: {
-          "Generated PDF": [{ url: pdfUrl }]
-        }
-      }
-    ]);
+          PDF: [{ url: pdfUrl }], // <-- make sure "PDF" is the Airtable Attachment field name
+        },
+      }),
+    });
 
-    console.log("Airtable update successful:", updated);
+    if (!response.ok) {
+      response = await fetch(urlB, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: {
+            PDF: [{ url: pdfUrl }],
+          },
+        }),
+      });
+    }
+
+    const data = await response.json();
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, updated })
+      body: JSON.stringify(data),
     };
-
   } catch (err) {
-    console.error("Upload error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: err.message }),
     };
   }
-}
+};
