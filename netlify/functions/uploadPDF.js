@@ -52,6 +52,14 @@ exports.handler = async (event) => {
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
+
+    //  const token = {
+    //   Authorization: `Bearer ${AIRTABLE_API_KEY}`
+    // };
+
+    // // Fetch Table A
+    // const resA = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}`, { token });
+
     for (let recordId of records) {
       await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_A}/${recordId}`, {
         method: "PATCH",
