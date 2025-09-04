@@ -10,7 +10,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "*", // or your Webflow domain
+        "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io", // or your Webflow domain
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
@@ -82,7 +82,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "*", // ✅ Fix CORS
+        "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io", // ✅ Fix CORS
       },
       body: JSON.stringify({ success: true, pdfUrl }),
     };
@@ -91,7 +91,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 500,
       headers: {
-        "Access-Control-Allow-Origin": "*", // ✅ Ensure even errors allow CORS
+        "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io", // ✅ Ensure even errors allow CORS
       },
       body: JSON.stringify({ success: false, error: err.message }),
     };
