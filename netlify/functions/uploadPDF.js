@@ -1,12 +1,9 @@
 // netlify/functions/uploadPDF.js
 const fetch = require("node-fetch");
 const FormData = require("form-data");
-const fs = require("fs");
-const multiparty = require("multiparty");
-const util = require("util");
 
 exports.handler = async (event) => {
-  // Handle CORS Preflight
+  // Handle CORS preflight
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -16,29 +13,25 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Parse multipart form
-    const form = new multiparty.Form();
-    const parseForm = util.promisify(form.parse.bind(form));
+    const body = JSON.parse(event.body); // Webflow must send JSON
+    const { fileBase64, records } = body;
 
-    // multiparty expects req-like object
-    const { fields, files } = await parseForm({
-      headers: event.headers,
-      // Netlify gives base64 body
-      on: () => {},
-      emit: () => {},
-      // Create buffer stream manually
-      body: Buffer.from(event.body, "base64"),
-    });
+    if (!fileBase64) {
+      throw new Error("No file provided");
+    }
 
-    const filePath = files.file[0].path;
-    const records = JSON.parse(fields.records[0]);
+    // Convert base64 -> Buffer
+    const fileBuffer = Buffer.from(fileBase64, "base64");
 
-    // Upload PDF to Cloudinary
+    // Upload to Cloudinary
     const cloudName = "dgpesr4ys";
     const uploadPreset = "unsigned_pdfs";
 
     const formData = new FormData();
-    formData.append("file", fs.createReadStream(filePath));
+    formData.append("file", fileBuffer, {
+      filename: "upload.pdf",
+      contentType: "application/pdf",
+    });
     formData.append("upload_preset", uploadPreset);
 
     const cloudRes = await fetch(
@@ -48,13 +41,13 @@ exports.handler = async (event) => {
 
     const cloudJson = await cloudRes.json();
     if (!cloudJson.secure_url) {
-      throw new Error("Failed to upload: " + JSON.stringify(cloudJson));
+      throw new Error("Cloudinary error: " + JSON.stringify(cloudJson));
     }
 
     const pdfUrl = cloudJson.secure_url;
 
-    // Save link in Airtable
-    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY; // set in Netlify dashboard
+    // Save link to Airtable
+    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb"; // set in Netlify
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
@@ -88,7 +81,6 @@ exports.handler = async (event) => {
   }
 };
 
-// CORS headers
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io",
