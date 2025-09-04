@@ -57,7 +57,7 @@ exports.handler = async function (event) {
     const pdfUrl = cloudJson.secure_url;
 
     // 🔹 Save link in Airtable under "Generated PDF"
-    const AIRTABLE_API_KEY = "YOUR_API_KEY";
+    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
