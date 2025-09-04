@@ -6,7 +6,7 @@ const multiparty = require("multiparty");
 const util = require("util");
 
 exports.handler = async (event) => {
-  // 🔹 Handle Preflight
+  // Handle CORS Preflight
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -16,20 +16,24 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 🔹 Parse multipart form using multiparty
+    // Parse multipart form
     const form = new multiparty.Form();
     const parseForm = util.promisify(form.parse.bind(form));
 
+    // multiparty expects req-like object
     const { fields, files } = await parseForm({
       headers: event.headers,
-      // convert body back from base64 to buffer
+      // Netlify gives base64 body
+      on: () => {},
+      emit: () => {},
+      // Create buffer stream manually
       body: Buffer.from(event.body, "base64"),
     });
 
     const filePath = files.file[0].path;
     const records = JSON.parse(fields.records[0]);
 
-    // 🔹 Upload to Cloudinary
+    // Upload PDF to Cloudinary
     const cloudName = "dgpesr4ys";
     const uploadPreset = "unsigned_pdfs";
 
@@ -49,8 +53,8 @@ exports.handler = async (event) => {
 
     const pdfUrl = cloudJson.secure_url;
 
-    // 🔹 Save PDF link in Airtable
-    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb"; // 👈 move sensitive keys to Netlify env
+    // Save link in Airtable
+    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY; // set in Netlify dashboard
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
@@ -84,7 +88,7 @@ exports.handler = async (event) => {
   }
 };
 
-// 🔹 Helper for CORS
+// CORS headers
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io",
@@ -92,5 +96,3 @@ function corsHeaders() {
     "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
   };
 }
-
-
