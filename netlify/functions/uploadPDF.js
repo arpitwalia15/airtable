@@ -41,6 +41,7 @@ exports.handler = async function (event, context) {
     const cloudName = "dgpesr4ys";
     const uploadPreset = "unsigned_pdfs";
 
+    
     const fileStream = fs.createReadStream(filePath);
     const formData = new FormData();
     formData.append("file", fileStream);
