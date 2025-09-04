@@ -1,37 +1,49 @@
 // netlify/functions/uploadPDF.js
 const fetch = require("node-fetch");
-const FormData = require("form-data");
 
 exports.handler = async (event) => {
+  // ✅ Handle CORS Preflight
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: corsHeaders(), body: "Preflight OK" };
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: "Preflight OK",
+    };
   }
 
   try {
-    const body = JSON.parse(event.body);
-    const { fileBase64, records } = body;
+    const { fileBase64, records } = JSON.parse(event.body);
 
-    if (!fileBase64) throw new Error("No file provided");
+    if (!fileBase64 || !records) {
+      throw new Error("Missing fileBase64 or records");
+    }
 
-    const fileBuffer = Buffer.from(fileBase64, "base64");
+    // 🔹 Upload PDF to Cloudinary
+    const cloudName = "dgpesr4ys";
+    const uploadPreset = "unsigned_pdfs";
 
-    const formData = new FormData();
-    formData.append("file", fileBuffer, {
-      filename: "upload.pdf",
-      contentType: "application/pdf",
-    });
-    formData.append("upload_preset", "unsigned_pdfs");
+    const cloudRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: `data:application/pdf;base64,${fileBase64}`,
+          upload_preset: uploadPreset,
+        }),
+      }
+    );
 
-    const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/dgpesr4ys/auto/upload`, {
-      method: "POST",
-      body: formData,
-    });
     const cloudJson = await cloudRes.json();
-    if (!cloudJson.secure_url) throw new Error("Cloudinary error: " + JSON.stringify(cloudJson));
+
+    if (!cloudJson.secure_url) {
+      throw new Error("Cloudinary upload failed: " + JSON.stringify(cloudJson));
+    }
 
     const pdfUrl = cloudJson.secure_url;
 
-    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
+    // 🔹 Save to Airtable
+    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY; // store in Netlify env
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
@@ -43,22 +55,33 @@ exports.handler = async (event) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fields: { "Generated PDF": [{ url: pdfUrl }] },
+          fields: {
+            "Generated PDF": [{ url: pdfUrl }],
+          },
         }),
       });
     }
 
-    return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ success: true, pdfUrl }) };
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: JSON.stringify({ success: true, pdfUrl }),
+    };
   } catch (err) {
     console.error("Upload error:", err);
-    return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ success: false, error: err.message }) };
+    return {
+      statusCode: 500,
+      headers: corsHeaders(),
+      body: JSON.stringify({ success: false, error: err.message }),
+    };
   }
 };
 
+// ✅ CORS headers helper
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
   };
 }
