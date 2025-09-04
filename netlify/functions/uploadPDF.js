@@ -84,7 +84,7 @@ exports.handler = async (event) => {
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
   };
 }
