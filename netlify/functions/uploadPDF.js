@@ -2,12 +2,18 @@
 const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
-  // ✅ Handle CORS Preflight
+  const headers = {
+    "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io", // 👈 your Webflow domain
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+  };
+
+  // ✅ Always handle preflight
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: corsHeaders(),
-      body: "Preflight OK",
+      headers,
+      body: "CORS preflight OK",
     };
   }
 
@@ -18,7 +24,7 @@ exports.handler = async (event) => {
       throw new Error("Missing fileBase64 or records");
     }
 
-    // 🔹 Upload PDF to Cloudinary
+    // 🔹 Upload to Cloudinary
     const cloudName = "dgpesr4ys";
     const uploadPreset = "unsigned_pdfs";
 
@@ -35,7 +41,6 @@ exports.handler = async (event) => {
     );
 
     const cloudJson = await cloudRes.json();
-
     if (!cloudJson.secure_url) {
       throw new Error("Cloudinary upload failed: " + JSON.stringify(cloudJson));
     }
@@ -43,7 +48,7 @@ exports.handler = async (event) => {
     const pdfUrl = cloudJson.secure_url;
 
     // 🔹 Save to Airtable
-    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY; // store in Netlify env
+    const AIRTABLE_API_KEY = "pat0n1jcAEI4sdSqx.daeb433bbb114a3e90d82b8b380b17e6f8f007426ea36aac6e15fdcc962994fb";
     const BASE_ID = "appEr7aN5ctjnRYdM";
     const TABLE_A = "tbllSk56KZ9TA0ioI";
 
@@ -64,24 +69,15 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders(),
+      headers,
       body: JSON.stringify({ success: true, pdfUrl }),
     };
   } catch (err) {
     console.error("Upload error:", err);
     return {
       statusCode: 500,
-      headers: corsHeaders(),
+      headers,
       body: JSON.stringify({ success: false, error: err.message }),
     };
   }
 };
-
-// ✅ CORS headers helper
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "https://giovannis-marvelous-site-238521.webflow.io",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
-  };
-}
